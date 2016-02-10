@@ -23,6 +23,7 @@ define("paramManager", function() {
 	var mod, _mod;
 	mod = {
 		only: function(list, url) { // list形式为["#hash", "?query"], 前者表示'#'后面的参数, 后者表示作为'?'后面的参数
+			url = url || location.href;
 			var oParams = _mod.url2obj(url),
 				p1 = [],
 				p2 = []; //p1是?开头的参数, p2是#开头的参数
@@ -37,11 +38,12 @@ define("paramManager", function() {
 				}
 			});
 
-			return [(p1.length ? "?" + p1.join("&") : ""),
+			return [url.split(/[?#]/)[0],
+					(p1.length ? "?" + p1.join("&") : ""),
 					(p2.length ? "#" + p2.join("&") : "")].join("");
 		},
 		without: function(list, url) {
-			url = url || "http://www.qq.com/index.html?a=1&b=2#c=3?d=4&e=5??d=6#?#s=7?" || location.href;
+			url = url || location.href;
 			list.forEach(function(name) {
 				var regex = new RegExp("([?#&])" + name + "(=[^?#&]*)?([?#&]|$)", "g"); 
 				//todo: 当出现"?a=1&a=1"的情况时会有问题,会漏掉一个
@@ -50,8 +52,37 @@ define("paramManager", function() {
 			})
 			return url;
 		},
-		set: function() {
+		set: function(key, value, url) { // set("?key", "value")
+			var type = key.match(/\?/) ? "?" : "#";
+			key = key.replace(/^[#?]/, "");
+			value = String(value);
+			url = url || location.href;
 
+			switch (type) {
+				case "?":
+					if (url.match(/\?/)) {
+						//原来就带有?参数,在?最前面添加
+						url = url.replace(/\?/, "?" + encodeURIComponent(key) + "=" + encodeURIComponent(value) + "&");
+					} else {
+						//原来没有?参数
+						if (url.match(/#/)) {
+							//但原来有#参数,在#前面添加
+							url = url.replace(/#/, "?" + encodeURIComponent(key) + "=" + encodeURIComponent(value) + "#");
+						} else {
+							//原来也没有#参数,直接在最后面添加
+							url += "?" + encodeURIComponent(key) + "=" + encodeURIComponent(value);
+						}
+					}
+					break;
+				case "#":
+					if (url.match(/#/)) {
+						url += "&" + encodeURIComponent(key) + "=" + encodeURIComponent(value);
+					} else {
+						url += "#" + encodeURIComponent(key) + "=" + encodeURIComponent(value);
+					}
+					break;
+			}
+			return url;
 		}
 	}
 	window.mod = mod; //@debug
@@ -59,7 +90,6 @@ define("paramManager", function() {
 	_mod = {
 		url2obj: function(url) {
 			var aParams, oParams = {};
-			url = url || "http://www.qq.com/index.html?a=1&b=2#c=3?d=4&e=5??d=6#?#s=7?" || location.href;
 			aParams = url.split(/[?#&]/).slice(1).filter(function(v) {
 				return !!v
 			});
@@ -73,11 +103,6 @@ define("paramManager", function() {
 			})
 
 			return oParams;
-		},
-		obj2str: function(obj) {
-			for (key in obj) {
-
-			}
 		}
 	}
 	return mod;
